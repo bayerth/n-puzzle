@@ -1,15 +1,16 @@
 package de.hrw.wi.puzzle.gui.window;
 
-/*
-Class written by
-Changend by Thomas Bayer (Jan. 2019):
-- Button Store/Restore added
-- Enabled choice of distance (ComboBox filled with Distance, GUIBoard adapted
-- minor improvements
+/**
+ * Class written by
+ * Changed by Thomas Bayer (Jan. 2019):
+ * - Button Store/Restore added
+ * - Enabled choice of distance (ComboBox filled with Distance, GUIBoard adapted
+ * - minor improvements
  */
 
+// todo adapt to dimension
 
-import de.hrw.wi.java.puzzle.Board;
+import de.hrw.wi.java.puzzle.Board8Puzzle;
 
 import javax.swing.*;
 import java.awt.*;
@@ -34,12 +35,13 @@ public class GUI extends javax.swing.JFrame {
     public GUIBoard guiBoard;
 
     private final JButton[] tiles;
-    private static int[][] blocks1 = {{1, 2, 3}, {4, 5, 6}, {7, 8, 0}};
+    //private static int[][] blocks1 = {{1, 2, 3}, {4, 5, 6}, {7, 8, 0}};
     private int[][] storedBlocks;
     private boolean store = true;
     private boolean solveButton = true;
     private boolean solving = false;
     private int timerSpeed = 500;
+    private int dimension = 3;
 
     private enum SPEED {
         SLOW, MEDIUM, FAST
@@ -48,7 +50,7 @@ public class GUI extends javax.swing.JFrame {
     public GUI() {
 
         // Frame title
-        super("8 Puzzle");
+        super("8 Puzzle - (C) Bayer/Hierlemann 2019 - HS Weingarten");
 
         // GUI settings
         initComponents();
@@ -58,7 +60,8 @@ public class GUI extends javax.swing.JFrame {
 
         // Init global variables
         this.tiles = new JButton[]{Tile_1, Tile_2, Tile_3, Tile_4, Tile_5, Tile_6, Tile_7, Tile_8, Tile_0};
-        this.guiBoard = new GUIBoard(blocks1);
+        //this.guiBoard = new GUIBoard(blocks1);
+        this.guiBoard = new GUIBoard();
 
         // Init tiles, set the font, disable focus and add the action listener
         for (int i = 0; i < tiles.length; ++i) {
@@ -67,14 +70,14 @@ public class GUI extends javax.swing.JFrame {
             tiles[i].addActionListener(new ActionListener() {
                 int num;
 
-                ActionListener me(int i) {
-                    num = i;
+                ActionListener me(int j) {
+                    num = j;
                     return this;
                 }
 
                 @Override
                 public void actionPerformed(ActionEvent e) {
-                    if (GUI.this.guiBoard.isSolving()) { return; }
+                    if (GUI.this.solving) { return; }
                     GUI.this.guiBoard.tilePressed(num);
                     setStatus(0, 0, 0, 0, 0, GUI.this.guiBoard.manhattan());
                     setText(format("Manhatten = %d, Hamming = %d", GUI.this.guiBoard.manhattan(), GUI.this.guiBoard.hamming()));
@@ -102,7 +105,7 @@ public class GUI extends javax.swing.JFrame {
         buttonRandom.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                if (GUI.this.guiBoard.isSolving()) { return; }
+                if (GUI.this.solving) { return; }
                 GUI.this.guiBoard.randomizeBoard();
                 setStatus(0, 0, 0, 0, 0, GUI.this.guiBoard.manhattan());
                 setText(format("Manhatten = %d, Hamming = %d", GUI.this.guiBoard.manhattan(), GUI.this.guiBoard.hamming()));
@@ -114,17 +117,11 @@ public class GUI extends javax.swing.JFrame {
         buttonSolve.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-//                if (GUI.this.guiBoard.isSolving()) {
-//                    GUI.this.guiBoard.stop();
-//                    setText(format("Manhatten = %d, Hamming = %d - ABORTED", GUI.this.guiBoard.manhattan(), GUI.this.guiBoard.hamming()));
-//                    return;
-//                }
                 if (solving) {
                     solving = false;
                     setText(format("Manhatten = %d, Hamming = %d - ABORTED", GUI.this.guiBoard.manhattan(), GUI.this.guiBoard.hamming()));
                     return;
                 }
-                //GUI.this.guiBoard.solve(GUI.this);
                 GUI.this.performSolution();
                 GUI.this.pack();
             }
@@ -134,19 +131,19 @@ public class GUI extends javax.swing.JFrame {
         buttonSpeedSelect.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                if (GUI.this.guiBoard.isSolving()) { return; }
+                if (GUI.this.solving) { return; }
                 String crnt = ((JButton) e.getSource()).getText();
                 switch (crnt) {
                     case "Slow":
-                        GUI.this.guiBoard.setTimerSpeed(GUIBoard.SPEED.MEDIUM);
+                        GUI.this.setTimerSpeed(SPEED.MEDIUM);
                         GUI.this.buttonSpeedSelect.setText("Medium");
                         break;
                     case "Medium":
-                        GUI.this.guiBoard.setTimerSpeed(GUIBoard.SPEED.FAST);
+                        GUI.this.setTimerSpeed(SPEED.FAST);
                         GUI.this.buttonSpeedSelect.setText("Fast");
                         break;
                     case "Fast":
-                        GUI.this.guiBoard.setTimerSpeed(GUIBoard.SPEED.SLOW);
+                        GUI.this.setTimerSpeed(SPEED.SLOW);
                         GUI.this.buttonSpeedSelect.setText("Slow");
                         break;
                 }
@@ -182,19 +179,19 @@ public class GUI extends javax.swing.JFrame {
         this.pack(); // resize the frame to fit the new size of the buttons
     }
 
-    // Draw current Board
+    // Draw current Board8Puzzle
     public final void drawBoard() {
         int[][] board = this.guiBoard.getCurrentBoard();
         int empty = -1;
         int counter = 0;
 
         // Label the buttons (tiles)
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < 3; j++) {
+        for (int i = 0; i < dimension; i++) {
+            for (int j = 0; j < dimension; j++) {
 
                 if (board[i][j] == 0) { empty = counter; }
                 else { tiles[counter].setText(String.valueOf(board[i][j])); }
-                counter = counter + 1;
+                counter++;
             }
         }
 
@@ -212,7 +209,7 @@ public class GUI extends javax.swing.JFrame {
     }
 
     public void setStatus(long time, int stateCounter, int dupStates, int nrOfMoves, int nrOfRemainingMoves, int distance) {
-        String status = format("<html>Time: %d ms<br/>All Nodes: %d <br/>Duplicates: %d<br/>Moves: %d<br/>Rem. moves %d<br/>Distance: %d</html>",
+        String status = format("<html>Time: %,d ms<br/>All Nodes: %,d <br/>Duplicates: %,d<br/>Moves: %,d<br/>Rem. moves %,d<br/>Distance: %d</html>",
                                time, stateCounter, dupStates, nrOfMoves, nrOfRemainingMoves, distance); //null = placeholder for
         this.setStatus(status);
     }
@@ -222,11 +219,11 @@ public class GUI extends javax.swing.JFrame {
     }
 
     private void performSolution() {
-        List<Board> solutionPath = guiBoard.solve();
+        List<Board8Puzzle> solutionPath = guiBoard.solve();
         displaySolutionPath(solutionPath, guiBoard.getElapsedTime(), guiBoard.getStateCounter(), guiBoard.getDupStateCounter());
     }
 
-    private void displaySolutionPath(List<Board> solutionPath, long time, int maxStates, int dupCounter) {
+    private void displaySolutionPath(List<Board8Puzzle> solutionPath, long time, int maxStates, int dupCounter) {
         // Save time, moves and nodes on label
         setStatus(time, maxStates, dupCounter, solutionPath.size(), solutionPath.size(), guiBoard.manhattan());
 
@@ -234,13 +231,13 @@ public class GUI extends javax.swing.JFrame {
         buttonSolve.setText(CANCEL);
         // Perform moves equal to timerSpeed
         new Timer(this.timerSpeed, new ActionListener() {
-            List<Board> solutionPath;
-            private Board bc;
+            List<Board8Puzzle> solutionPath;
+            private Board8Puzzle bc;
             private int counter = 0;
             private long time;
             private int nrOfMoves;
 
-            public ActionListener me(List<Board> solutionPath, Board bc, long time) {
+            public ActionListener me(List<Board8Puzzle> solutionPath, Board8Puzzle bc, long time) {
                 this.bc = bc;
                 this.solutionPath = solutionPath;
                 this.time = time;
@@ -251,22 +248,19 @@ public class GUI extends javax.swing.JFrame {
             @Override
             public void actionPerformed(ActionEvent e) {
                 // Stop solving when all moves are done or button reset pressed (goal state)
-                System.out.println("start");
                 if (solutionPath.isEmpty() || bc.isGoal()) {
-                    System.out.println("exit");
                     GUI.this.solving = false;
                     ((Timer) e.getSource()).stop();
                     GUI.this.buttonSolve.setText(SOLVE);
                     return;
                 }
                 if (GUI.this.solving == false) {
-                    System.out.println("break");
                     ((Timer) e.getSource()).stop();
                     GUI.this.buttonSolve.setText(SOLVE);
                     return;
                 }
                 // Set guiBoard and update the GUI
-                Board saveBoard = this.solutionPath.get(counter++);
+                Board8Puzzle saveBoard = this.solutionPath.get(counter++);
                 bc.setBlocks(saveBoard.getBlocks());
 
                 GUI.this.setStatus(time, maxStates, dupCounter, nrOfMoves, nrOfMoves - counter,
@@ -277,7 +271,7 @@ public class GUI extends javax.swing.JFrame {
         }.me(solutionPath, this.guiBoard, time)).start();
     }
 
-    public void setTimerSpeed(SPEED speed) {
+    private void setTimerSpeed(SPEED speed) {
         switch (speed) {
             case SLOW:
                 this.timerSpeed = 500;
@@ -289,17 +283,6 @@ public class GUI extends javax.swing.JFrame {
                 this.timerSpeed = 50;
                 break;
         }
-    }
-
-    public void toggleSolveButton() {
-        if (this.solveButton == true) {
-            solveButton = false;
-            buttonSolve.setText(CANCEL);
-        }
-        else {
-            solveButton = true;
-        }
-        buttonSolve.setText(SOLVE);
     }
 
     private void storeState() {
@@ -561,5 +544,6 @@ public class GUI extends javax.swing.JFrame {
     private GridBagConstraints gridBagConstraints_9;
     private GridBagConstraints gridBagConstraints_10;
     private JComboBox comboBoxStrategy;
+    private JTextField copyright;
     // End of variables declaration//GEN-END:variables
 }
