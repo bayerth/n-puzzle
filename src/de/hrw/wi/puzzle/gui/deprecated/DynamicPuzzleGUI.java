@@ -1,16 +1,21 @@
-package de.hrw.wi.puzzle.gui.window;
+package de.hrw.wi.puzzle.gui.deprecated;
 
 /**
  * Class written by
  * Changed by Thomas Bayer (Jan. 2019):
  * - Button Store/Restore added
- * - Enabled choice of distance (ComboBox filled with Distance, GUIBoard adapted
+ * - Enabled choice of distance (ComboBox filled with Distance, GUIBoard8Puzzle adapted
  * - minor improvements
  */
 
-// todo adapt to dimension
+// todo: add slider
 
 import de.hrw.wi.java.puzzle.Board8Puzzle;
+import de.hrw.wi.java.puzzle.HeuristicStateSpaceSolver;
+import de.hrw.wi.java.statespace.AStateSpaceSolver;
+import de.hrw.wi.puzzle.gui.window.BoardPanel;
+import de.hrw.wi.puzzle.gui.window.GUIBoard8Puzzle;
+import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.awt.*;
@@ -33,30 +38,49 @@ public class DynamicPuzzleGUI extends JFrame {
     public static final String STORE_STATE = "Store";
     public static final String RESTORE_STATE = "Restore";
     public static final String SOLVE = "Solve";
-    public static final String CANCEL = "Cancel";
+    public static final String PAUSE = "Pause";
+    public static final String NEXT_STEP = "Next";
+    public static final String CONTINUE = "Continue";
+    public static final String STEPWISE = "Stepwise";
+    public static final String FAST = "Fast";
+    public static final String MEDIUM = "Medium";
+    public static final String SLOW = "Slow";
+    public static final String INFO_STRING = "Manhatten = %d, Hamming = %d, weight = %d";
 
-    public GUIBoard guiBoard;
-
-    private JMenuBar menuBar;
-    private JMenu menu, submenu;
-    private JMenuItem menuItem;
-
+    private GUIBoard8Puzzle guiBoard;
+    private int[][] currentState;
     private BoardPanel boardPanel;
     private List<JButton> tileList;
+
     private int[][] storedBlocks;
     private boolean store = true;
     private boolean solveButton = true;
     private boolean solving = false;
     private int timerSpeed = 500;
+    private boolean stepByStepDisplay = false;
+    private boolean ignoreFirstRun = true;
+    private boolean firstStep = true;
+    private int stepCounter = 0;
     private int dimension = 3;
+    private HeuristicStateSpaceSolver solver;
+    private List<Board8Puzzle> solutionPath;
+    private long elapsedTime = 0;
+    private int stateCounter = 0;
+    private int dupStateCounter = 0;
+    private int nrOfMoves = 0;
 
     private enum SPEED {
         SLOW, MEDIUM, FAST
     }
 
+    public DynamicPuzzleGUI(AStateSpaceSolver solver) {
+        super("X Puzzle - (C) Bayer/Hierlemann 2019 - HS Weingarten");
+        initGUI(GUIBoard8Puzzle.DEFAULT_DIMENSION);
+    }
+
     public DynamicPuzzleGUI() {
         super("X Puzzle - (C) Bayer/Hierlemann 2019 - HS Weingarten");
-        initGUI(GUIBoard.DEFAULT_DIMENSION);
+        initGUI(GUIBoard8Puzzle.DEFAULT_DIMENSION);
     }
 
     public DynamicPuzzleGUI(int dimension) {
@@ -65,7 +89,146 @@ public class DynamicPuzzleGUI extends JFrame {
         initGUI(dimension);
     }
 
+    // Draw current Board8Puzzle
+    public final void drawBoard() {
+        boardPanel.drawBoard(this.guiBoard.getCurrentBoard());
+    }
+
+    public void setStatus(String stat) {
+        this.Label_Status.setText(stat);
+    }
+
+    public void setStatus(int distance) {
+        String status = format("<html>Time: %,d ms<br/>All Nodes: %,d <br/>Duplicates: %,d<br/>Moves: %,d<br/>Rem. moves %,d<br/>Distance: %d</html>",
+                               elapsedTime, stateCounter, dupStateCounter, nrOfMoves, nrOfMoves - stepCounter, distance);
+        this.setStatus(status);
+    }
+
+    public void setText(String text) {
+        this.txtpnTextbox.setText(text);
+    }
+
+    private void performSolution() {
+        if (firstStep) { // no solution available, compute it
+            this.solutionPath = solver.simpleSolve(this.guiBoard);
+            this.solutionPath = guiBoard.solve();
+            this.nrOfMoves = solutionPath.size();
+            this.stateCounter = guiBoard.getStateCounter();
+            this.dupStateCounter = guiBoard.getDupStateCounter();
+            this.elapsedTime = guiBoard.getElapsedTime();
+            this.firstStep = false;
+
+            initSlider();
+            slider.updateUI();
+
+        }
+        if (this.solutionPath.size() == 0) { // empty solution, i.e., initial state = goal
+            return;
+        }
+        if (this.stepByStepDisplay) { // step by step display
+            this.solving = true;
+            buttonSolve.setText(NEXT_STEP);
+            if (ignoreFirstRun) { // first run, show no new step
+                setStatus(this.guiBoard.manhattan() + this.guiBoard.getWeight());
+            }
+            else { // show next step
+                displayCurrentSolutionStep();
+                DynamicPuzzleGUI.this.stepCounter++; // todo: adapt to slider
+            }
+            ignoreFirstRun = false;
+        }
+        else { // continuous mode for showing the solution path
+            displaySolutionPath(this.solutionPath.subList(stepCounter, solutionPath.size()), elapsedTime, stateCounter, dupStateCounter);
+        }
+    }
+
+    private void displaySolutionPath(List<Board8Puzzle> solutionPath, long time, int maxStates, int dupCounter) {
+        // Save time, moves and nodes on label
+        setStatus(guiBoard.manhattan());
+
+        this.solving = true;
+        buttonSolve.setText(PAUSE);
+        // Perform moves equal to timerSpeed
+        new Timer(this.timerSpeed, new ActionListener() {
+            DynamicPuzzleGUI GUI;
+            List<Board8Puzzle> solutionPath;
+            private Board8Puzzle bc;
+            private long time;
+            private int nrOfMoves;
+
+            @NotNull
+            public ActionListener me(DynamicPuzzleGUI GUI, @NotNull List<Board8Puzzle> solutionPath, Board8Puzzle bc) {
+                this.GUI = GUI;
+                this.bc = bc;
+                this.solutionPath = solutionPath;
+                nrOfMoves = solutionPath.size();
+                return this;
+            }
+
+            @Override
+            public void actionPerformed(@NotNull ActionEvent e) {
+                // Stop solving when all moves are done or button reset pressed (goal state)
+                if (bc.isGoal()) {
+                    DynamicPuzzleGUI.this.solving = false;
+                    ((Timer) e.getSource()).stop();
+                    DynamicPuzzleGUI.this.stepCounter = 0;
+                    DynamicPuzzleGUI.this.firstStep = true;
+                    DynamicPuzzleGUI.this.buttonSolve.setText(SOLVE);
+                    return;
+                }
+                if (DynamicPuzzleGUI.this.solving == false) {
+                    ((Timer) e.getSource()).stop();
+                    DynamicPuzzleGUI.this.buttonSolve.setText(CONTINUE);
+                    return;
+                }
+                // Set guiBoard and update the GUI
+                displayCurrentSolutionStep();
+                slider.setValue(stepCounter);
+                DynamicPuzzleGUI.this.stepCounter++;
+            }
+        }.me(this, solutionPath, this.guiBoard)).start();
+    }
+
+    private void displayCurrentSolutionStep() {
+        Board8Puzzle saveBoard = this.solutionPath.get(stepCounter);
+        this.guiBoard.setBlocks(saveBoard.getBlocks());
+        this.setStatus(this.guiBoard.manhattan() + this.guiBoard.getWeight());
+        this.setText(format(INFO_STRING, this.guiBoard.manhattan(), this.guiBoard.hamming(), saveBoard.getWeight()));
+        this.drawBoard();
+    }
+
+    private void setTimerSpeed(SPEED speed) {
+        switch (speed) {
+            case SLOW:
+                this.timerSpeed = 500;
+                break;
+            case MEDIUM:
+                this.timerSpeed = 250;
+                break;
+            case FAST:
+                this.timerSpeed = 50;
+                break;
+        }
+    }
+
+    private void storeState() {
+        this.storedBlocks = guiBoard.getBlocks();
+    }
+
+    private void restoreState() {
+        if (!store) {
+            this.guiBoard = new GUIBoard8Puzzle(storedBlocks);
+        }
+    }
+
+    private void clearComponents() {
+        this.getContentPane().removeAll();
+    }
+
+
     public void initGUI(int dimension) {
+        solver = new HeuristicStateSpaceSolver();
+
         //Create the menu bar.
         initMenuBar();
         menuBar.add(menu);
@@ -82,20 +245,28 @@ public class DynamicPuzzleGUI extends JFrame {
         //this.generateButtons();
         initButtons();
 
-        this.guiBoard = new GUIBoard(dimension);
+        // init slider
+
+        this.guiBoard = new GUIBoard8Puzzle(dimension);
 
         // Action Listener Reset
+
         buttonReset.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 DynamicPuzzleGUI.this.guiBoard.resetBoard();
-                setStatus(0, 0, 0, 0, 0, DynamicPuzzleGUI.this.guiBoard.manhattan());
+                DynamicPuzzleGUI.this.resetStepByStepState();
+                DynamicPuzzleGUI.this.firstStep = true;
+                DynamicPuzzleGUI.this.slider.setMaximum(0);
+                setStatus(DynamicPuzzleGUI.this.guiBoard.manhattan());
                 if (!store) {
                     store = true;
                     //storedBoard = null;
                     buttonMemory.setText(STORE_STATE);
                 }
-                DynamicPuzzleGUI.this.drawBoard();
+                //DynamicPuzzleGUI.this.drawBoard();
+                drawBoard();
+                DynamicPuzzleGUI.this.pack();
             }
         });
 
@@ -105,7 +276,8 @@ public class DynamicPuzzleGUI extends JFrame {
             public void actionPerformed(ActionEvent e) {
                 if (DynamicPuzzleGUI.this.solving) { return; }
                 DynamicPuzzleGUI.this.guiBoard.randomizeBoard();
-                setStatus(0, 0, 0, 0, 0, DynamicPuzzleGUI.this.guiBoard.manhattan());
+                DynamicPuzzleGUI.this.resetStepByStepState();
+                setStatus(DynamicPuzzleGUI.this.guiBoard.manhattan());
                 setText(format("Manhatten = %d, Hamming = %d", DynamicPuzzleGUI.this.guiBoard.manhattan(), DynamicPuzzleGUI.this.guiBoard.hamming()));
                 DynamicPuzzleGUI.this.drawBoard();
             }
@@ -115,7 +287,13 @@ public class DynamicPuzzleGUI extends JFrame {
         buttonSolve.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                if (solving) {
+                if (stepByStepDisplay) { // step by step display
+                    if (stepCounter > 0 && stepCounter >= solutionPath.size()) { // goal reached
+                        resetStepByStepState();
+                        return;
+                    }
+                }
+                else if (solving) { // timer for displaying solution is active
                     solving = false;
                     setText(format("Manhatten = %d, Hamming = %d - ABORTED", DynamicPuzzleGUI.this.guiBoard.manhattan(),
                                    DynamicPuzzleGUI.this.guiBoard.hamming()));
@@ -129,22 +307,32 @@ public class DynamicPuzzleGUI extends JFrame {
         // Action Listener Solving Speed
         buttonSpeedSelect.addActionListener(new ActionListener() {
             @Override
-            public void actionPerformed(ActionEvent e) {
+            public void actionPerformed(@NotNull ActionEvent e) {
                 if (DynamicPuzzleGUI.this.solving) { return; }
                 String crnt = ((JButton) e.getSource()).getText();
                 switch (crnt) {
                     case "Slow":
                         DynamicPuzzleGUI.this.setTimerSpeed(SPEED.MEDIUM);
-                        DynamicPuzzleGUI.this.buttonSpeedSelect.setText("Medium");
+                        DynamicPuzzleGUI.this.buttonSpeedSelect.setText(MEDIUM);
+                        DynamicPuzzleGUI.this.stepByStepDisplay = false;
                         break;
                     case "Medium":
                         DynamicPuzzleGUI.this.setTimerSpeed(SPEED.FAST);
-                        DynamicPuzzleGUI.this.buttonSpeedSelect.setText("Fast");
+                        DynamicPuzzleGUI.this.buttonSpeedSelect.setText(FAST);
+                        DynamicPuzzleGUI.this.stepByStepDisplay = false;
                         break;
                     case "Fast":
                         DynamicPuzzleGUI.this.setTimerSpeed(SPEED.SLOW);
-                        DynamicPuzzleGUI.this.buttonSpeedSelect.setText("Slow");
+                        DynamicPuzzleGUI.this.buttonSpeedSelect.setText(STEPWISE);
+                        DynamicPuzzleGUI.this.slider.setEnabled(true);
+                        DynamicPuzzleGUI.this.stepByStepDisplay = true;
                         break;
+                    case "Step":
+                        DynamicPuzzleGUI.this.stepByStepDisplay = false;
+                        DynamicPuzzleGUI.this.slider.setEnabled(false);
+                        DynamicPuzzleGUI.this.stepCounter = 0;
+                        DynamicPuzzleGUI.this.buttonSpeedSelect.setText(SLOW);
+                        // todo: slider. no action listener, no ui, passivate!,
                 }
             }
         });
@@ -160,6 +348,7 @@ public class DynamicPuzzleGUI extends JFrame {
                 }
                 else {
                     DynamicPuzzleGUI.this.restoreState();
+                    // passivate slider, enable solution
                     DynamicPuzzleGUI.this.drawBoard();
                 }
             }
@@ -173,13 +362,31 @@ public class DynamicPuzzleGUI extends JFrame {
         });
         comboBoxStrategy.setSelectedIndex(0);
 
-        setStatus(0, 0, 0, 0, 0, DynamicPuzzleGUI.this.guiBoard.manhattan());
+        setStatus(DynamicPuzzleGUI.this.guiBoard.manhattan());
         this.drawBoard();
         this.boardPanel.drawBoard(guiBoard.getBlocks());
         this.pack(); // resize the frame to fit the new size of the buttons
     }
 
-    public void initMenuBar() {
+    private void initSlider() {
+        slider.setMinimum(0);
+        slider.setMaximum(this.nrOfMoves - 1);
+        slider.setValue(0);
+        slider.setMajorTickSpacing(10);
+        slider.setMinorTickSpacing(1);
+        slider.setPaintTicks(true);
+        slider.setPaintLabels(true);
+        slider.setPaintTicks(true);
+        if (slider.getChangeListeners().length == 0 && this.stepByStepDisplay) {
+            slider.addChangeListener(e -> {
+                System.out.println("value = " + ((JSlider) e.getSource()).getValue());
+                DynamicPuzzleGUI.this.stepCounter = ((JSlider) e.getSource()).getValue();
+                displayCurrentSolutionStep();
+            });
+        }
+    }
+
+    private void initMenuBar() {
 
         menuBar = new JMenuBar();
 
@@ -251,7 +458,7 @@ public class DynamicPuzzleGUI extends JFrame {
             tile.addActionListener(new ActionListener() {
                 int num;
 
-                ActionListener me(int i) {
+                @NotNull ActionListener me(int i) {
                     num = i;
                     return this;
                 }
@@ -260,7 +467,7 @@ public class DynamicPuzzleGUI extends JFrame {
                 public void actionPerformed(ActionEvent e) {
                     if (DynamicPuzzleGUI.this.solving) { return; }
                     DynamicPuzzleGUI.this.guiBoard.tilePressed(num);
-                    setStatus(0, 0, 0, 0, 0, DynamicPuzzleGUI.this.guiBoard.manhattan());
+                    setStatus(DynamicPuzzleGUI.this.guiBoard.manhattan());
                     setText(format("Manhatten = %d, Hamming = %d", DynamicPuzzleGUI.this.guiBoard.manhattan(),
                                    DynamicPuzzleGUI.this.guiBoard.hamming()));
                     DynamicPuzzleGUI.this.drawBoard();
@@ -268,106 +475,6 @@ public class DynamicPuzzleGUI extends JFrame {
             }.me(counter));
             counter++;
         }
-    }
-
-    // Draw current Board8Puzzle
-    public final void drawBoard() {
-        boardPanel.drawBoard(guiBoard.getCurrentBoard());
-    }
-
-    public void setStatus(String stat) {
-        this.Label_Status.setText(stat);
-    }
-
-    public void setStatus(long time, int stateCounter, int dupStates, int nrOfMoves, int nrOfRemainingMoves, int distance) {
-        String status = format("<html>Time: %,d ms<br/>All Nodes: %,d <br/>Duplicates: %,d<br/>Moves: %,d<br/>Rem. moves %,d<br/>Distance: %d</html>",
-                               time, stateCounter, dupStates, nrOfMoves, nrOfRemainingMoves, distance);
-        this.setStatus(status);
-    }
-
-    public void setText(String text) {
-        this.txtpnTextbox.setText(text);
-    }
-
-    private void performSolution() {
-        List<Board8Puzzle> solutionPath = guiBoard.solve();
-        displaySolutionPath(solutionPath, guiBoard.getElapsedTime(), guiBoard.getStateCounter(), guiBoard.getDupStateCounter());
-    }
-
-    private void displaySolutionPath(List<Board8Puzzle> solutionPath, long time, int maxStates, int dupCounter) {
-        // Save time, moves and nodes on label
-        setStatus(time, maxStates, dupCounter, solutionPath.size(), solutionPath.size(), guiBoard.manhattan());
-
-        this.solving = true;
-        buttonSolve.setText(CANCEL);
-        // Perform moves equal to timerSpeed
-        new Timer(this.timerSpeed, new ActionListener() {
-            List<Board8Puzzle> solutionPath;
-            private Board8Puzzle bc;
-            private int counter = 0;
-            private long time;
-            private int nrOfMoves;
-
-            public ActionListener me(List<Board8Puzzle> solutionPath, Board8Puzzle bc, long time) {
-                this.bc = bc;
-                this.solutionPath = solutionPath;
-                this.time = time;
-                nrOfMoves = solutionPath.size();
-                return this;
-            }
-
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                // Stop solving when all moves are done or button reset pressed (goal state)
-                if (solutionPath.isEmpty() || bc.isGoal()) {
-                    DynamicPuzzleGUI.this.solving = false;
-                    ((Timer) e.getSource()).stop();
-                    DynamicPuzzleGUI.this.buttonSolve.setText(SOLVE);
-                    return;
-                }
-                if (DynamicPuzzleGUI.this.solving == false) {
-                    ((Timer) e.getSource()).stop();
-                    DynamicPuzzleGUI.this.buttonSolve.setText(SOLVE);
-                    return;
-                }
-                // Set guiBoard and update the GUI
-                Board8Puzzle saveBoard = this.solutionPath.get(counter++);
-                bc.setBlocks(saveBoard.getBlocks());
-
-                DynamicPuzzleGUI.this.setStatus(time, maxStates, dupCounter, nrOfMoves, nrOfMoves - counter,
-                                                bc.manhattan() + bc.getWeight());
-                DynamicPuzzleGUI.this.setText(format("Manhatten = %d, Hamming = %d, weight = %d", bc.manhattan(), bc.hamming(), bc.getWeight()));
-                DynamicPuzzleGUI.this.drawBoard();
-            }
-        }.me(solutionPath, this.guiBoard, time)).start();
-    }
-
-    private void setTimerSpeed(SPEED speed) {
-        switch (speed) {
-            case SLOW:
-                this.timerSpeed = 500;
-                break;
-            case MEDIUM:
-                this.timerSpeed = 250;
-                break;
-            case FAST:
-                this.timerSpeed = 50;
-                break;
-        }
-    }
-
-    private void storeState() {
-        this.storedBlocks = guiBoard.getBlocks();
-    }
-
-    private void restoreState() {
-        if (!store) {
-            this.guiBoard = new GUIBoard(storedBlocks);
-        }
-    }
-
-    private void clearComponents() {
-        this.getContentPane().removeAll();
     }
 
 
@@ -379,6 +486,12 @@ public class DynamicPuzzleGUI extends JFrame {
     // Code">//GEN-BEGIN:initComponents
     private void initComponents() {
         GridBagConstraints gridBagConstraints;
+        GridBagConstraints gridBagConstraints_1;
+        GridBagConstraints gbc_btnSolver;
+        GridBagConstraints gbc_btnRandom;
+        JPanel ButtonsPanel;
+        JPanel Main_Right;
+        JPanel jPanel2;
 
         Main_Right = new JPanel();
         ButtonsPanel = new JPanel();
@@ -402,12 +515,12 @@ public class DynamicPuzzleGUI extends JFrame {
         buttonRandom.setFont(new Font("Ubuntu", 0, 16)); // NOI18N
         buttonRandom.setText("Randomize");
         buttonRandom.setFocusable(false);
-        gbc_btnZufllig = new GridBagConstraints();
-        gbc_btnZufllig.insets = new Insets(0, 0, GRIDBAG_BOTTOM, 0);
-        gbc_btnZufllig.gridx = 0;
-        gbc_btnZufllig.gridy = 0;
-        gbc_btnZufllig.fill = GridBagConstraints.HORIZONTAL;
-        ButtonsPanel.add(buttonRandom, gbc_btnZufllig);
+        gbc_btnRandom = new GridBagConstraints();
+        gbc_btnRandom.insets = new Insets(0, 0, GRIDBAG_BOTTOM, 0);
+        gbc_btnRandom.gridx = 0;
+        gbc_btnRandom.gridy = 0;
+        gbc_btnRandom.fill = GridBagConstraints.HORIZONTAL;
+        ButtonsPanel.add(buttonRandom, gbc_btnRandom);
 
         buttonReset.setFont(new Font("Ubuntu", 0, 16)); // NOI18N
         buttonReset.setText("Reset");
@@ -476,11 +589,27 @@ public class DynamicPuzzleGUI extends JFrame {
         getContentPane().add(this.boardPanel, BorderLayout.CENTER);
         boardPanel.generateButtons();
 
+        // init Statusline
+        JPanel bottomPanel = new JPanel(new BorderLayout());
+
         txtpnTextbox = new JTextPane();
         txtpnTextbox.setText("Textbox");
-        getContentPane().add(txtpnTextbox, BorderLayout.SOUTH);
+        bottomPanel.add(txtpnTextbox, BorderLayout.NORTH);
+        //getContentPane().add(txtpnTextbox, BorderLayout.SOUTH);
+
+        // slider
+        slider = new JSlider(JSlider.HORIZONTAL);
+        //getContentPane().add(slider, BorderLayout.SOUTH);
+        bottomPanel.add(slider, BorderLayout.SOUTH);
+        getContentPane().add(bottomPanel, BorderLayout.SOUTH);
 
         pack();
+    }
+
+    private void resetStepByStepState() {
+        ignoreFirstRun = true;
+        stepCounter = 0;
+        buttonSolve.setText(SOLVE);
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
@@ -489,17 +618,15 @@ public class DynamicPuzzleGUI extends JFrame {
     private JButton buttonSolve;
     private JButton buttonMemory;
     private JButton buttonSpeedSelect;
-    private JPanel ButtonsPanel;
     private JLabel Label_Status;
-    private JPanel Main_Right;
-
-    private JPanel jPanel2;
-    private GridBagConstraints gbc_btnSolver;
-    private GridBagConstraints gbc_btnZufllig;
-    private GridBagConstraints gridBagConstraints_1;
     private JTextPane txtpnTextbox;
-    private GridBagConstraints gridBagConstraints_2;
     private JComboBox comboBoxStrategy;
     private JTextField copyright;
+
+    private JMenuBar menuBar;
+    private JMenu menu, submenu;
+    private JMenuItem menuItem;
+    private JSlider slider;
+
     // End of variables declaration//GEN-END:variables
 }

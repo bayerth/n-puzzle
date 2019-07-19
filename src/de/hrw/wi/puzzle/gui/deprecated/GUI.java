@@ -1,16 +1,17 @@
-package de.hrw.wi.puzzle.gui.window;
+package de.hrw.wi.puzzle.gui.deprecated;
 
 /**
  * Class written by
  * Changed by Thomas Bayer (Jan. 2019):
  * - Button Store/Restore added
- * - Enabled choice of distance (ComboBox filled with Distance, GUIBoard adapted
+ * - Enabled choice of distance (ComboBox filled with Distance, GUIBoard8Puzzle adapted
  * - minor improvements
  */
 
 // todo adapt to dimension
 
 import de.hrw.wi.java.puzzle.Board8Puzzle;
+import de.hrw.wi.puzzle.gui.window.GUIBoard8Puzzle;
 
 import javax.swing.*;
 import java.awt.*;
@@ -32,7 +33,7 @@ public class GUI extends javax.swing.JFrame {
     public static final String RESTORE_STATE = "Restore";
     public static final String SOLVE = "Solve";
     public static final String CANCEL = "Cancel";
-    public GUIBoard guiBoard;
+    public GUIBoard8Puzzle guiBoard;
 
     private final JButton[] tiles;
     //private static int[][] blocks1 = {{1, 2, 3}, {4, 5, 6}, {7, 8, 0}};
@@ -60,8 +61,8 @@ public class GUI extends javax.swing.JFrame {
 
         // Init global variables
         this.tiles = new JButton[]{Tile_1, Tile_2, Tile_3, Tile_4, Tile_5, Tile_6, Tile_7, Tile_8, Tile_0};
-        //this.guiBoard = new GUIBoard(blocks1);
-        this.guiBoard = new GUIBoard();
+        //this.guiBoard = new GUIBoard8Puzzle(blocks1);
+        this.guiBoard = new GUIBoard8Puzzle();
 
         // Init tiles, set the font, disable focus and add the action listener
         for (int i = 0; i < tiles.length; ++i) {
@@ -291,7 +292,7 @@ public class GUI extends javax.swing.JFrame {
 
     private void restoreState() {
         if (!store) {
-            this.guiBoard = new GUIBoard(storedBlocks);
+            this.guiBoard = new GUIBoard8Puzzle(storedBlocks);
         }
     }
 

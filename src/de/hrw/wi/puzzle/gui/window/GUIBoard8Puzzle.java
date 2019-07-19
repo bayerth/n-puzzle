@@ -7,20 +7,20 @@
  */
 package de.hrw.wi.puzzle.gui.window;
 
-//import de.hrw.wi.java.statespace.Board8Puzzle;
-
 import de.hrw.wi.java.puzzle.Board8Puzzle;
 import de.hrw.wi.java.puzzle.HeuristicStateSpaceSolver;
+import de.hrw.wi.java.statespace.AStateSpaceSolver;
 import de.hrw.wi.java.statespace.IEvaluate;
 
 import java.util.List;
 
-import static de.hrw.wi.puzzle.gui.window.GUI.*;
+import static de.hrw.wi.puzzle.gui.window.EightPuzzleGUI.*;
 
-public class GUIBoard extends Board8Puzzle {
+public class GUIBoard8Puzzle extends Board8Puzzle {
 
     public static final int DEFAULT_DIMENSION = 3;
-    private HeuristicStateSpaceSolver solver;
+    //private HeuristicStateSpaceSolver solver;
+    private AStateSpaceSolver solver;
     private IEvaluate<Board8Puzzle> distance;
 
     private long elapsedTime;
@@ -28,26 +28,32 @@ public class GUIBoard extends Board8Puzzle {
     private int dupStateCounter;
     private boolean solving = false;
 
-    public GUIBoard() {
+    public GUIBoard8Puzzle(AStateSpaceSolver sovler) {
+        super(DEFAULT_DIMENSION);
+        this.solver = solver;
+    }
+
+
+    public GUIBoard8Puzzle() {
         super(DEFAULT_DIMENSION);
         solver = new HeuristicStateSpaceSolver();
     }
 
-    public GUIBoard(int dimension) {
+    public GUIBoard8Puzzle(int dimension) {
         super(dimension);
         solver = new HeuristicStateSpaceSolver();
     }
 
-    public GUIBoard(int[][] blocks) {
+    public GUIBoard8Puzzle(int[][] blocks) {
         super(blocks);
         solver = new HeuristicStateSpaceSolver();
     }
 
-    public GUIBoard(Board8Puzzle b) {
+    public GUIBoard8Puzzle(Board8Puzzle b) {
         super(b);
     }
 
-    public GUIBoard(boolean start) {
+    public GUIBoard8Puzzle(boolean start) {
         super(start);
     }
 
