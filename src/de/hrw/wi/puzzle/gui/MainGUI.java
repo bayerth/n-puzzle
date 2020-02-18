@@ -1,23 +1,25 @@
 package de.hrw.wi.puzzle.gui;
 
 
-import de.hrw.wi.puzzle.gui.window.DynamicPuzzleGUI;
+import de.hrw.wi.puzzle.gui.window.EightPuzzleGUI;
 
 public class MainGUI {
 
     public static void main(String[] args) {
         // Start GUI
         int dimension = 3;
-        if (args.length == 1) {
+        if(args.length == 1) {
             try {
                 dimension = Integer.parseInt(args[0]);
-            } catch (Exception e) {
+            } catch(Exception e) {
                 help();
                 System.exit(-1);
             }
         }
-        DynamicPuzzleGUI dynamicPuzzleGUI = new DynamicPuzzleGUI(dimension);
-        dynamicPuzzleGUI.setVisible(true);
+        EightPuzzleGUI eightPuzzleGUI = new EightPuzzleGUI(dimension);
+        eightPuzzleGUI.setVisible(true);
+        //DynamicPuzzleGUI dynamicPuzzleGUI = new DynamicPuzzleGUI(dimension);
+        //dynamicPuzzleGUI.setVisible(true);
     }
 
     private static void help() {
