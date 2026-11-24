@@ -18,8 +18,6 @@ public class MainGUI {
         }
         EightPuzzleGUI eightPuzzleGUI = new EightPuzzleGUI(dimension);
         eightPuzzleGUI.setVisible(true);
-        //DynamicPuzzleGUI dynamicPuzzleGUI = new DynamicPuzzleGUI(dimension);
-        //dynamicPuzzleGUI.setVisible(true);
     }
 
     private static void help() {

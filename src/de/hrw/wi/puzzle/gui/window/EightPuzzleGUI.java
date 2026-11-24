@@ -4,7 +4,6 @@ import de.hrw.wi.java.puzzle.Board8Puzzle;
 import de.hrw.wi.java.puzzle.HeuristicStateSpaceSolver;
 import de.hrw.wi.java.statespace.AStateSpaceSolver;
 import de.hrw.wi.java.statespace.IEvaluate;
-import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.awt.*;
@@ -157,8 +156,7 @@ public class EightPuzzleGUI extends JFrame implements BoardPanel.OnClickInteract
             private long time;
             private int nrOfMoves;
 
-            @NotNull
-            public ActionListener me(EightPuzzleGUI GUI, @NotNull List<Board8Puzzle> solutionPath) {
+            public ActionListener me(EightPuzzleGUI GUI, List<Board8Puzzle> solutionPath) {
                 if (solutionPath == null || solutionPath.size() == 0) { displayingSolution = false; }
                 else {
                     this.GUI = GUI;
@@ -170,7 +168,7 @@ public class EightPuzzleGUI extends JFrame implements BoardPanel.OnClickInteract
             }
 
             @Override
-            public void actionPerformed(@NotNull ActionEvent e) {
+            public void actionPerformed(ActionEvent e) {
                 // Stop displayingSolution when all moves are done or button reset pressed (goal state)
                 if (EightPuzzleGUI.this.displayingSolution == false) {
                     ((Timer) e.getSource()).stop();
@@ -373,7 +371,7 @@ public class EightPuzzleGUI extends JFrame implements BoardPanel.OnClickInteract
         // Action Listener Solving Speed
         buttonSpeedSelect.addActionListener(new ActionListener() {
             @Override
-            public void actionPerformed(@NotNull ActionEvent e) {
+            public void actionPerformed(ActionEvent e) {
                 if (EightPuzzleGUI.this.displayingSolution) { return; }
                 String crnt = ((JButton) e.getSource()).getText();
                 switch (crnt) {
@@ -537,7 +535,7 @@ public class EightPuzzleGUI extends JFrame implements BoardPanel.OnClickInteract
             tile.addActionListener(new ActionListener() {
                 int num;
 
-                @NotNull ActionListener me(int i) {
+                ActionListener me(int i) {
                     num = i;
                     return this;
                 }

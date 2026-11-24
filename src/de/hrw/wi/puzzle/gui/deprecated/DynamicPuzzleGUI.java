@@ -15,7 +15,6 @@ import de.hrw.wi.java.puzzle.HeuristicStateSpaceSolver;
 import de.hrw.wi.java.statespace.AStateSpaceSolver;
 import de.hrw.wi.puzzle.gui.window.BoardPanel;
 import de.hrw.wi.puzzle.gui.window.GUIBoard8Puzzle;
-import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.awt.*;
@@ -156,8 +155,7 @@ public class DynamicPuzzleGUI extends JFrame {
             private long time;
             private int nrOfMoves;
 
-            @NotNull
-            public ActionListener me(DynamicPuzzleGUI GUI, @NotNull List<Board8Puzzle> solutionPath, Board8Puzzle bc) {
+            public ActionListener me(DynamicPuzzleGUI GUI, List<Board8Puzzle> solutionPath, Board8Puzzle bc) {
                 this.GUI = GUI;
                 this.bc = bc;
                 this.solutionPath = solutionPath;
@@ -166,7 +164,7 @@ public class DynamicPuzzleGUI extends JFrame {
             }
 
             @Override
-            public void actionPerformed(@NotNull ActionEvent e) {
+            public void actionPerformed(ActionEvent e) {
                 // Stop solving when all moves are done or button reset pressed (goal state)
                 if (bc.isGoal()) {
                     DynamicPuzzleGUI.this.solving = false;
@@ -307,7 +305,7 @@ public class DynamicPuzzleGUI extends JFrame {
         // Action Listener Solving Speed
         buttonSpeedSelect.addActionListener(new ActionListener() {
             @Override
-            public void actionPerformed(@NotNull ActionEvent e) {
+            public void actionPerformed(ActionEvent e) {
                 if (DynamicPuzzleGUI.this.solving) { return; }
                 String crnt = ((JButton) e.getSource()).getText();
                 switch (crnt) {
@@ -458,7 +456,7 @@ public class DynamicPuzzleGUI extends JFrame {
             tile.addActionListener(new ActionListener() {
                 int num;
 
-                @NotNull ActionListener me(int i) {
+                ActionListener me(int i) {
                     num = i;
                     return this;
                 }
